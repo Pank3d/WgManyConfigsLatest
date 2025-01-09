@@ -1,49 +1,49 @@
-# As a workaround we have to build on nodejs 18
-# nodejs 20 hangs on build with armv6/armv7
-FROM docker.io/library/node:18-alpine AS build_node_modules
+# Stage 1: Установка зависимостей
+FROM docker.io/library/node:18 AS build_node_modules
 
-# Update npm to latest
-RUN npm install -g npm@latest
+# Обновляем npm до последней версии
+RUN npm install -g npm
 
-# Copy Web UI
+# Копируем исходный код
 COPY src /app
 WORKDIR /app
-RUN npm ci --omit=dev &&\
-    mv node_modules /node_modules
 
-# Copy build result to a new image.
-# This saves a lot of disk space.
+# Устанавливаем только production-зависимости
+RUN npm ci --omit=dev && mv node_modules /node_modules
+
+# Stage 2: Создание финального образа
 FROM docker.io/library/node:20-alpine
-HEALTHCHECK CMD /usr/bin/timeout 5s /bin/sh -c "/usr/bin/wg show | /bin/grep -q interface || exit 1" --interval=1m --timeout=5s --retries=3
-COPY --from=build_node_modules /app /app
 
-# Move node_modules one directory up, so during development
-# we don't have to mount it in a volume.
-# This results in much faster reloading!
-#
-# Also, some node_modules might be native, and
-# the architecture & OS of your development machine might differ
-# than what runs inside of docker.
+# Добавляем healthcheck
+HEALTHCHECK CMD /usr/bin/timeout 5s /bin/sh -c "/usr/bin/wg show | /bin/grep -q interface || exit 1" || exit 1
+
+# Копируем приложение и зависимости
+COPY --from=build_node_modules /app /app
 COPY --from=build_node_modules /node_modules /node_modules
 
-# Copy the needed wg-password scripts
+# Копируем скрипт wgpw
 COPY --from=build_node_modules /app/wgpw.sh /bin/wgpw
 RUN chmod +x /bin/wgpw
 
-# Install Linux packages
-RUN apk add --no-cache \
+# Устанавливаем пакеты
+RUN apk update && apk add --no-cache \
     dpkg \
     dumb-init \
     iptables \
-    iptables-legacy \
     wireguard-tools
 
-# Use iptables-legacy
-RUN update-alternatives --install /sbin/iptables iptables /sbin/iptables-legacy 10 --slave /sbin/iptables-restore iptables-restore /sbin/iptables-legacy-restore --slave /sbin/iptables-save iptables-save /sbin/iptables-legacy-save
+# (Опционально) Настраиваем iptables, если требуется
+RUN [ ! -f /var/lib/alternatives/iptables ] && \
+    update-alternatives --install /sbin/iptables iptables /sbin/iptables 10 \
+    --slave /sbin/iptables-restore iptables-restore /sbin/iptables-restore \
+    --slave /sbin/iptables-save iptables-save /sbin/iptables-save || true
 
-# Set Environment
+# Настраиваем переменные окружения
 ENV DEBUG=Server,WireGuard
 
-# Run Web UI
+# Указываем рабочую директорию
 WORKDIR /app
+
+# Запускаем приложение
 CMD ["/usr/bin/dumb-init", "node", "server.js"]
+
