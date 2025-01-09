@@ -5,15 +5,15 @@ const {
 } = require("./package.json");
 
 module.exports.RELEASE = version;
-module.exports.PORT = process.env.PORT || "500";
+module.exports.PORT = process.env.PORT || "700";
 module.exports.WEBUI_HOST = process.env.WEBUI_HOST || "0.0.0.0";
 module.exports.PASSWORD_HASH = process.env.PASSWORD_HASH;
 module.exports.WG_PATH = process.env.WG_PATH || "/etc/wireguard/";
 module.exports.WG_DEVICE = process.env.WG_DEVICE || "eth0";
 module.exports.WG_HOST = process.env.WG_HOST || "83.222.22.71";
-module.exports.WG_PORT = process.env.WG_PORT || "800";
+module.exports.WG_PORT = process.env.WG_PORT || "1000";
 module.exports.WG_CONFIG_PORT =
-  process.env.WG_CONFIG_PORT || process.env.WG_PORT || "800";
+  process.env.WG_CONFIG_PORT || process.env.WG_PORT || "1000";
 module.exports.WG_MTU = process.env.WG_MTU || null;
 module.exports.WG_PERSISTENT_KEEPALIVE =
   process.env.WG_PERSISTENT_KEEPALIVE || "0";
