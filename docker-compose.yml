@@ -34,3 +34,16 @@ services:
     cap_add:
       - NET_ADMIN  # Убедитесь, что эти привилегии действительно необходимы
       - SYS_MODULE
+
+  wg-easy-2:
+    build:
+      context: ./wgProjectServersUtil-2  # Убедитесь, что этот путь правильный и содержит Dockerfile
+      dockerfile: Dockerfile  # Проверьте, что Dockerfile находится здесь
+    command: npm run serve  # Убедитесь, что команда корректна для запуска вашего приложения
+    ports:
+      - "1000:1000/udp"  # Проверьте, что этот порт открыт на хосте
+      - "700:700/tcp"  # Проверьте, что этот порт открыт на хосте
+    cap_add:
+      - NET_ADMIN  # Убедитесь, что эти привилегии действительно необходимы
+      - SYS_MODULE
+  
