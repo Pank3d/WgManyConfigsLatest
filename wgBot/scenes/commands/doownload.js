@@ -1,7 +1,9 @@
 import { Markup } from 'telegraf';
+import { safeReply } from '../helpers/helpers.js';
+
 export function download(bot) {
 	bot.command('download_wireguard', async ctx => {
-		ctx.reply(
+		await safeReply(ctx,
 			'Перед использованием конфига, скачайте приложение WireGuard 👇',
 			Markup.inlineKeyboard([ 
 				[
@@ -29,7 +31,7 @@ export function download(bot) {
 		);
 	});
 
-	bot.action('make_config', ctx => {
-		ctx.reply('Сделать конфиг');
+	bot.action('make_config', async ctx => {
+		await safeReply(ctx, 'Сделать конфиг');
 	});
 }

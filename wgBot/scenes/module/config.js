@@ -4,18 +4,22 @@ import dotenv from "dotenv";
 dotenv.config();
 import { Markup } from "telegraf";
 import { v4 as uuidv4 } from "uuid";
+import { safeReply, safeReplyWithDocument } from "../helpers/helpers.js";
 
 const BASE_URL = process.env.BASE_URL;
 
 export function config(bot) {
   bot.hears("Инструкция", async (ctx) => {
     try {
-      ctx.reply(
+      // ctx.reply(
+      //   "Инструкцию вы найдете здесь https://lastseenvpn.gitbook.io/vpn-setup-guide/tutorial/ustanovka-i-nastroika-vpn/wireguard"
+      // );
+      await safeReply(ctx,
         "Инструкцию вы найдете здесь https://lastseenvpn.gitbook.io/vpn-setup-guide/tutorial/ustanovka-i-nastroika-vpn/wireguard"
       );
     } catch (error) {
       console.error("Ошибка при отправке инструкции:", error);
-      ctx.reply("Произошла ошибка при отправке инструкции.");
+      await safeReply(ctx, "Произошла ошибка при отправке инструкции.");
     }
   });
 
@@ -33,7 +37,6 @@ export function config(bot) {
         : `unknown_${uuidv4()}`;
 
       try {
-        // Отправка запроса на создание конфига
         const response = await fetch(
           `${BASE_URL}/api/wireguard/clientCreateTg`,
           {
@@ -48,17 +51,16 @@ export function config(bot) {
         const data = await response.json();
 
         if (data.success) {
-          ctx.reply("Конфиг добавлен. Высылаю конфиг...");
+          await safeReply(ctx, "Конфиг добавлен. Высылаю конфиг...");
         } else {
-          ctx.reply("Не удалось добавить конфигурацию.");
+          await safeReply(ctx, "Не удалось добавить конфигурацию.");
         }
       } catch (error) {
         console.error("Ошибка при добавлении конфигурации:", error);
-        ctx.reply("Произошла ошибка при добавлении конфигурации.");
+        await safeReply(ctx, "Произошла ошибка при добавлении конфигурации.");
       }
 
       try {
-        // Запрос всех клиентов WireGuard
         const response = await fetch(`${BASE_URL}/api/wireguard/client`, {
           method: "GET",
         });
@@ -72,10 +74,9 @@ export function config(bot) {
         });
       } catch (error) {
         console.error("Ошибка при получении списка конфигураций:", error);
-        ctx.reply("Произошла ошибка при получении списка конфигураций.");
+        await safeReply(ctx, "Произошла ошибка при получении списка конфигураций.");
       }
 
-      // Функция для получения конфигурации по ID
       const getConfigById = async () => {
         try {
           const response = await fetch(
@@ -94,32 +95,30 @@ export function config(bot) {
         }
       };
 
-      // Функция для создания и отправки файла конфигурации
       const createFileForSend = async () => {
         try {
           const configData = await getConfigById();
           if (configData) {
             const filePath = "./config.conf";
-            fs.writeFileSync(filePath, configData); // Сохранение файла
-            await ctx.replyWithDocument({ source: filePath }); // Отправка файла пользователю
-            fs.unlinkSync(filePath); // Удаление файла после отправки
+            fs.writeFileSync(filePath, configData);
+            await safeReplyWithDocument(ctx, filePath);
+            fs.unlinkSync(filePath);
 
-            ctx.reply(
+            await safeReply(ctx,
               "Вы можете посмотреть инструкцию",
               Markup.keyboard([["Инструкция"]])
                 .oneTime()
                 .resize()
             );
           } else {
-            ctx.reply("Не удалось получить конфигурацию.");
+            await safeReply(ctx, "Не удалось получить конфигурацию.");
           }
         } catch (error) {
           console.error("Ошибка при создании или отправке файла:", error);
-          ctx.reply("Произошла ошибка при создании или отправке конфигурации.");
+          await safeReply(ctx, "Произошла ошибка при создании или отправке конфигурации.");
         }
       };
 
-      // Вызов функции для создания и отправки конфигурации
       createFileForSend();
 
       ctx.session.waitingForConfig = false;

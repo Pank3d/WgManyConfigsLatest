@@ -1,5 +1,6 @@
 import { Markup } from 'telegraf';
 import { bot } from '../../index.js';
+import { safeReply } from '../helpers/helpers.js';
 
 export async function startCommand(ctx) {
 	const chanelId = '@wireguardvpntop';
@@ -31,7 +32,7 @@ export async function startCommand(ctx) {
 					memberAction.status === 'administrator' ||
 					memberAction.status === 'creator'
 				) {
-					ctx.reply(
+					await safeReply(ctx,
 						'Нажмите сделать конфиг',
 						Markup.keyboard([['Сделать конфиг']])
 							.oneTime()
@@ -41,7 +42,7 @@ export async function startCommand(ctx) {
 				} else {
 					ctx.answerCbQuery();
 					ctx.deleteMessage();
-					ctx.reply(
+					await safeReply(ctx,
 						'Подпишитесь на наш ТГ канал, чтобы получить бесплатный конфиг https://t.me/wireguardvpntop. После подписки нажмите кнопку ниже.',
 						Markup.inlineKeyboard([
 							Markup.button.callback('Я подписался', 'check_membership'),
@@ -64,14 +65,14 @@ export async function startCommand(ctx) {
 			member.status === 'administrator' ||
 			member.status === 'creator'
 		) {
-			ctx.reply(
+			await safeReply(ctx,
 				'Нажмите сделать конфиг',
 				Markup.keyboard([['Сделать конфиг']])
 					.oneTime()
 					.resize()
 			);
 		} else {
-			ctx.reply(
+			await safeReply(ctx,
 				'Подпишитесь на наш ТГ канал, чтобы получить бесплатный конфиг https://t.me/wireguardvpntop. После подписки нажмите кнопку ниже.',
 				Markup.inlineKeyboard([
 					Markup.button.callback('Я подписался', 'check_membership'),
