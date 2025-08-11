@@ -1,6 +1,6 @@
 import { Markup } from 'telegraf';
 import { bot } from '../../index.js';
-import { safeReply } from '../helpers/helpers.js';
+import { safeReply, safeDeleteMessage } from '../helpers/helpers.js';
 
 export async function startCommand(ctx) {
 	const chanelId = '@wireguardvpntop';
@@ -41,7 +41,7 @@ export async function startCommand(ctx) {
 					ctx.answerCbQuery();
 				} else {
 					ctx.answerCbQuery();
-					ctx.deleteMessage();
+					await safeDeleteMessage(ctx);
 					await safeReply(ctx,
 						'Подпишитесь на наш ТГ канал, чтобы получить бесплатный конфиг https://t.me/wireguardvpntop. После подписки нажмите кнопку ниже.',
 						Markup.inlineKeyboard([
