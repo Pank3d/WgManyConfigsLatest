@@ -1,20 +1,19 @@
-import fetch from "node-fetch";
 import fs from "fs";
-import dotenv from "dotenv";
-dotenv.config();
 import { Markup } from "telegraf";
 import { v4 as uuidv4 } from "uuid";
 import { safeReply, safeReplyWithDocument } from "../helpers/helpers.js";
-
-const BASE_URL = process.env.BASE_URL;
+import wireguardService from "../../services/wireguardService.js";
+import {
+  canCreateConfig,
+  getUserConfigCount,
+  getMaxConfigsPerUser,
+} from "../../utils/userConfigs.js";
 
 export function config(bot) {
   bot.hears("Инструкция", async (ctx) => {
     try {
-      // ctx.reply(
-      //   "Инструкцию вы найдете здесь https://lastseenvpn.gitbook.io/vpn-setup-guide/tutorial/ustanovka-i-nastroika-vpn/wireguard"
-      // );
-      await safeReply(ctx,
+      await safeReply(
+        ctx,
         "Инструкцию вы найдете здесь https://lastseenvpn.gitbook.io/vpn-setup-guide/tutorial/ustanovka-i-nastroika-vpn/wireguard"
       );
     } catch (error) {
@@ -29,26 +28,27 @@ export function config(bot) {
       return;
     }
 
+    // Проверка лимита конфигов
+    const canCreate = await canCreateConfig(ctx.from);
+    if (!canCreate) {
+      const currentCount = await getUserConfigCount(ctx.from);
+      const maxConfigs = getMaxConfigsPerUser();
+      await safeReply(
+        ctx,
+        `⚠️ Вы достигли максимального лимита конфигов (${currentCount}/${maxConfigs}).\n\nЧтобы создать новый конфиг, необходимо удалить один из существующих.`
+      );
+      return;
+    }
+
     ctx.session.waitingForConfig = true;
     let configId = "";
     if (ctx.session.waitingForConfig) {
       const config = ctx.from.username
         ? `${ctx.from.username}_${uuidv4()}`
-        : `unknown_${uuidv4()}`;
+        : `user_${ctx.from.id}_${uuidv4()}`;
 
       try {
-        const response = await fetch(
-          `${BASE_URL}/api/wireguard/clientCreateTg`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ name: config }),
-          }
-        );
-
-        const data = await response.json();
+        const data = await wireguardService.createClient(config);
 
         if (data.success) {
           await safeReply(ctx, "Конфиг добавлен. Высылаю конфиг...");
@@ -61,31 +61,23 @@ export function config(bot) {
       }
 
       try {
-        const response = await fetch(`${BASE_URL}/api/wireguard/client`, {
-          method: "GET",
-        });
-        const data = await response.json();
+        const client = await wireguardService.findClientByName(config);
 
-        data.map((item) => {
-          if (item.name === config) {
-            configId = item.id;
-            return;
-          }
-        });
+        if (client) {
+          configId = client.id;
+          console.log("Найден клиент:", client);
+        }
       } catch (error) {
         console.error("Ошибка при получении списка конфигураций:", error);
-        await safeReply(ctx, "Произошла ошибка при получении списка конфигураций.");
+        await safeReply(
+          ctx,
+          "Произошла ошибка при получении списка конфигураций."
+        );
       }
 
       const getConfigById = async () => {
         try {
-          const response = await fetch(
-            `${BASE_URL}/api/wireguard/client/${configId}/configuration`,
-            {
-              method: "GET",
-            }
-          );
-          return response.text();
+          return await wireguardService.getClientConfiguration(configId);
         } catch (error) {
           console.error(
             `Ошибка при получении конфигурации с ID ${configId}:`,
@@ -104,7 +96,8 @@ export function config(bot) {
             await safeReplyWithDocument(ctx, filePath);
             fs.unlinkSync(filePath);
 
-            await safeReply(ctx,
+            await safeReply(
+              ctx,
               "Вы можете посмотреть инструкцию",
               Markup.keyboard([["Инструкция"]])
                 .oneTime()
@@ -115,7 +108,10 @@ export function config(bot) {
           }
         } catch (error) {
           console.error("Ошибка при создании или отправке файла:", error);
-          await safeReply(ctx, "Произошла ошибка при создании или отправке конфигурации.");
+          await safeReply(
+            ctx,
+            "Произошла ошибка при создании или отправке конфигурации."
+          );
         }
       };
 

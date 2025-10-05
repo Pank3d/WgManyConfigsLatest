@@ -34,7 +34,6 @@ export async function safeReplyWithDocument(ctx, filePath) {
   }
 }
 
-
 /**
  * Безопасное удаление сообщения с обработкой ошибок.
  * @param {object} ctx - Контекст Telegraf.
@@ -50,10 +49,17 @@ export async function safeDeleteMessage(ctx, messageId) {
 
     await ctx.deleteMessage(targetMessageId);
   } catch (error) {
-    if (error.response?.error_code === 400 && error.response?.description.includes("can't be deleted for everyone")) {
-      console.log(`⚠️ Сообщение ${messageId} нельзя удалить для всех (возможно, прошло >48 часов).`);
+    if (
+      error.response?.error_code === 400 &&
+      error.response?.description.includes("can't be deleted for everyone")
+    ) {
+      console.log(
+        `⚠️ Сообщение ${messageId} нельзя удалить для всех (возможно, прошло >48 часов).`
+      );
     } else if (error.response?.error_code === 400) {
-      console.error(`❌ Ошибка 400 при удалении: ${error.response.description}`);
+      console.error(
+        `❌ Ошибка 400 при удалении: ${error.response.description}`
+      );
     } else {
       console.error("Неизвестная ошибка при удалении:", error);
     }
