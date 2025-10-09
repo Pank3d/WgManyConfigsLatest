@@ -28,14 +28,23 @@ export function config(bot) {
       return;
     }
 
-    // Проверка лимита конфигов
-    const canCreate = await canCreateConfig(ctx.from);
-    if (!canCreate) {
+    try {
+      // Проверка лимита конфигов (делаем только один вызов getUserConfigCount)
       const currentCount = await getUserConfigCount(ctx.from);
       const maxConfigs = getMaxConfigsPerUser();
+
+      if (currentCount >= maxConfigs) {
+        await safeReply(
+          ctx,
+          `⚠️ Вы достигли максимального лимита конфигов (${currentCount}/${maxConfigs}).\n\nЧтобы создать новый конфиг, необходимо удалить один из существующих.`
+        );
+        return;
+      }
+    } catch (error) {
+      console.error("Ошибка при проверке лимита конфигов:", error);
       await safeReply(
         ctx,
-        `⚠️ Вы достигли максимального лимита конфигов (${currentCount}/${maxConfigs}).\n\nЧтобы создать новый конфиг, необходимо удалить один из существующих.`
+        "⚠️ Произошла ошибка при проверке лимита конфигов. Попробуйте позже."
       );
       return;
     }
@@ -48,76 +57,78 @@ export function config(bot) {
         : `user_${ctx.from.id}_${uuidv4()}`;
 
       try {
+        // Создаем клиента
         const data = await wireguardService.createClient(config);
 
         if (data.success) {
-          await safeReply(ctx, "Конфиг добавлен. Высылаю конфиг...");
+          await safeReply(ctx, "✅ Конфиг добавлен. Высылаю конфиг...");
         } else {
-          await safeReply(ctx, "Не удалось добавить конфигурацию.");
+          await safeReply(ctx, "❌ Не удалось добавить конфигурацию.");
+          ctx.session.waitingForConfig = false;
+          return;
         }
-      } catch (error) {
-        console.error("Ошибка при добавлении конфигурации:", error);
-        await safeReply(ctx, "Произошла ошибка при добавлении конфигурации.");
-      }
 
-      try {
+        // Ждем немного, чтобы клиент успел сохраниться
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        // Получаем созданного клиента
         const client = await wireguardService.findClientByName(config);
 
-        if (client) {
-          configId = client.id;
-          console.log("Найден клиент:", client);
-        }
-      } catch (error) {
-        console.error("Ошибка при получении списка конфигураций:", error);
-        await safeReply(
-          ctx,
-          "Произошла ошибка при получении списка конфигураций."
-        );
-      }
-
-      const getConfigById = async () => {
-        try {
-          return await wireguardService.getClientConfiguration(configId);
-        } catch (error) {
-          console.error(
-            `Ошибка при получении конфигурации с ID ${configId}:`,
-            error
-          );
-          return null;
-        }
-      };
-
-      const createFileForSend = async () => {
-        try {
-          const configData = await getConfigById();
-          if (configData) {
-            const filePath = "./config.conf";
-            fs.writeFileSync(filePath, configData);
-            await safeReplyWithDocument(ctx, filePath);
-            fs.unlinkSync(filePath);
-
-            await safeReply(
-              ctx,
-              "Вы можете посмотреть инструкцию",
-              Markup.keyboard([["Инструкция"]])
-                .oneTime()
-                .resize()
-            );
-          } else {
-            await safeReply(ctx, "Не удалось получить конфигурацию.");
-          }
-        } catch (error) {
-          console.error("Ошибка при создании или отправке файла:", error);
+        if (!client) {
+          console.error("Клиент не найден после создания:", config);
           await safeReply(
             ctx,
-            "Произошла ошибка при создании или отправке конфигурации."
+            "⚠️ Конфиг создан, но не удалось его найти. Попробуйте позже."
           );
+          ctx.session.waitingForConfig = false;
+          return;
         }
-      };
 
-      createFileForSend();
+        configId = client.id;
+        console.log("Найден клиент:", client);
 
-      ctx.session.waitingForConfig = false;
+        // Получаем конфигурацию
+        const configData = await wireguardService.getClientConfiguration(configId);
+
+        if (!configData) {
+          await safeReply(ctx, "❌ Не удалось получить конфигурацию.");
+          ctx.session.waitingForConfig = false;
+          return;
+        }
+
+        // Создаем и отправляем файл
+        const filePath = "./config.conf";
+        fs.writeFileSync(filePath, configData);
+        await safeReplyWithDocument(ctx, filePath);
+        fs.unlinkSync(filePath);
+
+        await safeReply(
+          ctx,
+          "✅ Конфиг успешно отправлен!\n\nВы можете посмотреть инструкцию по настройке:",
+          Markup.keyboard([["Инструкция"]])
+            .oneTime()
+            .resize()
+        );
+      } catch (error) {
+        console.error("Ошибка при создании конфига:", error);
+
+        // Определяем тип ошибки для более информативного сообщения
+        let errorMessage = "⚠️ Произошла ошибка при создании конфига.";
+
+        if (error.code === "ECONNABORTED" || error.code === "ETIMEDOUT") {
+          errorMessage += " Превышено время ожидания ответа от сервера.";
+        } else if (error.response?.status >= 500) {
+          errorMessage += " Сервер временно недоступен.";
+        } else if (error.response?.status === 429) {
+          errorMessage += " Слишком много запросов. Попробуйте через минуту.";
+        }
+
+        errorMessage += "\n\nПопробуйте еще раз через несколько секунд.";
+
+        await safeReply(ctx, errorMessage);
+      } finally {
+        ctx.session.waitingForConfig = false;
+      }
     }
   });
 }
