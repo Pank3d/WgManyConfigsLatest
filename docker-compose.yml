@@ -4,6 +4,8 @@ services:
       context: ./wgProjectServersUtil  # Убедитесь, что этот путь правильный и содержит Dockerfile
       dockerfile: Dockerfile  # Проверьте, что Dockerfile находится здесь
     command: npm run serve  # Убедитесь, что команда корректна для запуска вашего приложения
+    env_file:
+      - ./wgProjectServersUtil/.env
     ports:
       - "800:800/udp"  # Проверьте, что этот порт открыт на хосте
       - "500:500/tcp"  # Проверьте, что этот порт открыт на хосте
@@ -28,6 +30,8 @@ services:
       context: ./wgProjectServersUtil-1  # Убедитесь, что этот путь правильный и содержит Dockerfile
       dockerfile: Dockerfile  # Проверьте, что Dockerfile находится здесь
     command: npm run serve  # Убедитесь, что команда корректна для запуска вашего приложения
+    env_file:
+      - ./wgProjectServersUtil-1/.env
     ports:
       - "900:900/udp"  # Проверьте, что этот порт открыт на хосте
       - "600:600/tcp"  # Проверьте, что этот порт открыт на хосте
@@ -40,6 +44,8 @@ services:
       context: ./wgProjectServersUtil-2  # Убедитесь, что этот путь правильный и содержит Dockerfile
       dockerfile: Dockerfile  # Проверьте, что Dockerfile находится здесь
     command: npm run serve  # Убедитесь, что команда корректна для запуска вашего приложения
+    env_file:
+      - ./wgProjectServersUtil-2/.env
     ports:
       - "1000:1000/udp"  # Проверьте, что этот порт открыт на хосте
       - "700:700/tcp"  # Проверьте, что этот порт открыт на хосте

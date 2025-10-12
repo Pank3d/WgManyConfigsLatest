@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Read(//c/Users/max20/WgManyConfigsLatest/wgProjectServersUtil-2/src/services/**)",
-      "Read(//c/Users/max20/WgManyConfigsLatest/wgProjectServersUtil-2/src/lib/**)"
+      "Read(//c/Users/max20/WgManyConfigsLatest/wgProjectServersUtil-2/src/lib/**)",
+      "Read(//c/Users/max20/WgManyConfigsLatest/**)"
     ],
     "deny": [],
     "ask": []
