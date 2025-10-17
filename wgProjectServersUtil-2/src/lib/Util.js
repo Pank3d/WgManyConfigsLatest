@@ -2,6 +2,34 @@
 
 const childProcess = require('child_process');
 
+// Очередь для ограничения количества одновременных процессов
+class ProcessQueue {
+  constructor(maxConcurrent = 5) {
+    this.maxConcurrent = maxConcurrent;
+    this.running = 0;
+    this.queue = [];
+  }
+
+  async exec(fn) {
+    // Если достигнут лимит, ждём в очереди
+    while (this.running >= this.maxConcurrent) {
+      await new Promise(resolve => this.queue.push(resolve));
+    }
+
+    this.running++;
+    try {
+      return await fn();
+    } finally {
+      this.running--;
+      // Запускаем следующую задачу из очереди
+      const next = this.queue.shift();
+      if (next) next();
+    }
+  }
+}
+
+const processQueue = new ProcessQueue(5); // Максимум 5 одновременных процессов
+
 module.exports = class Util {
 
   static isValidIPv4(str) {
@@ -67,12 +95,15 @@ module.exports = class Util {
       return '';
     }
 
-    return new Promise((resolve, reject) => {
-      childProcess.exec(cmd, {
-        shell: 'bash',
-      }, (err, stdout) => {
-        if (err) return reject(err);
-        return resolve(String(stdout).trim());
+    // Используем очередь для ограничения одновременных процессов
+    return processQueue.exec(() => {
+      return new Promise((resolve, reject) => {
+        childProcess.exec(cmd, {
+          shell: 'bash',
+        }, (err, stdout) => {
+          if (err) return reject(err);
+          return resolve(String(stdout).trim());
+        });
       });
     });
   }

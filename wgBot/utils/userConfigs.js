@@ -29,6 +29,13 @@ export async function getUserConfigCount(user) {
     return userConfigs.length;
   } catch (error) {
     console.error("Ошибка при подсчете конфигов пользователя:", error);
+
+    // Если сервер вернул 500 ошибку, пропускаем проверку лимита (возвращаем 0)
+    if (error.response?.status === 500 || error.status === 500) {
+      console.warn("Сервер вернул 500, пропускаем проверку лимита");
+      return 0;
+    }
+
     throw error;
   }
 }
